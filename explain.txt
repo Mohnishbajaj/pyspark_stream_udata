@@ -1,0 +1,49 @@
+The application is structure as 
+src - The folder where all the source code is.
+data - The input data for the streaming application
+
+./src/setup.sh
+This is simple shell script which helps create some directory using by the application-
+
+Below is the description of folder and the content of the same.
+log - Log Directory which contains the audit files for producer every 1 minute and consumer to check number of messages for every 15 mins.
+json_raw- This contains temporary files for cleansed json data processed by the consumer every 5 mins
+json_raw_tgt- This contains the final clensed json files streamed every 5 mins from the Kafka Topic
+country_summary_raw- This folder is for temporary files.
+country_summary_tgt- This contains the final json files generated for count of user per country every streaming batch interval.
+gender_summary_raw-  This folder is for temporary files.
+gender_summary_tgt- This contains the final json files generated for gender based split of number of user every streaming batch interval.
+uuser_summary_raw- This folder is for temporary files. 
+uuser_summary_raw- This folder contains the final json files generated for count of unique user every streaming batch interval.
+
+cleanse_function_xfr.py:
+
+This is a script which contains helper functions for cleansing the incoming json data. 
+This contain functions as below:
+cleanse_country: This function takes country as input and returns the cleansed version with first letter as Caps.
+cleanse_first_last: This function takes first/last names a input and returns Capitlized version of the first/last name.
+check_cleanse_ip: This function takes IP address as input and validates if its valid. If valid, it returns the same value, If not then return blank.
+check_date: This function takes date as input and check if its in the expected format, if not then return blank, otherwise return as is.
+check_cleanse_gender: This function takes gender as input and returns a Uniform value like Male/Female incase in it m/f, male/female etc.
+check_email: This function takes email as an input and validates if its valid or not. If not then returns blank.
+
+json_producer.py:
+
+This script is a producer which reads the Input MOCK_DATA.json and send each json message to the Topic InputUserTopic every 5 seconds.
+This also produces a .csv files for each day in the log directory. This files contains every minute snapshot of the number of messages written to the 
+topic.
+
+pyspark_kafka_userdata_consumer.py:
+
+This script is pyspark consumer. 
+This opens a Dstream for the Kafka topic where json message is sent with a Batch of 15 mins.
+For each batch this does the following:
+
+Coverts the message data to a DataFrame for each batch.
+Runs the helper functions from cleanse_function_xfr.py and creates a new DataFrame.
+This also adds a ProcessingTime column to the dataframe to be able to snapshot the data
+After this, it creates a Table or View using SparkSQL on which the Summarization is done.
+There are three metrics generated:
+1) Number of Users from each Country, This summary is written to a folder country_summary_tgt as a new json file every 15 mins. This can be loaded to a DB or used by Reporting 
+2) Number of User based on gender, This summary is written to a folder gender_summary_tgt as  a new json file every 15 mins. 
+3) Number of Unique Users, This summary is written to a folder uuser_summary_tgt as a new json file every 15 mins.
